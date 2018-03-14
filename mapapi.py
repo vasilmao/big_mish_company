@@ -37,7 +37,6 @@ def map_bigger(map_request, delta, sizex, sizey, ll, type, z):
 
 
 def show_map(ll=None, z=17, sizex=600, sizey=450, map_type='map', add_params=None):
-    z = 1
     if ll:
         map_request = "http://static-maps.yandex.ru/1.x/?ll={0}&z={1}&size={2},{3}&l={4}".format(ll, z, sizex, sizey, map_type)
         print(map_request)
