@@ -4,9 +4,18 @@ import requests
 import sys
 import os
 
+
+def map_bigger(map_request, delta, spnx, spny):
+    if spnx + delta > 0 and spny + delta > 0:
+        new_spn = str(spnx+delta) + ',' + str(spny+delta)
+        map_request.replace("spn={},{}".format(spnx, spny), "spn="+new_spn)
+    return map_request
+
 def show_map(ll_spn=None, map_type="map", add_params=None):
     if ll_spn:
         map_request = "http://static-maps.yandex.ru/1.x/?{ll_spn}&l={map_type}".format(**locals())
+        spn = ll_spn[0]
+        spnx, spny = map(float, spn.split(','))
     else:
         map_request = "http://static-maps.yandex.ru/1.x/?l={map_type}".format(**locals())
 
@@ -35,9 +44,14 @@ def show_map(ll_spn=None, map_type="map", add_params=None):
     # Рисуем картинку, загружаемую из только что созданного файла.
     screen.blit(pygame.image.load(map_file), (0, 0))
     # Переключаем экран и ждем закрытия окна.
-    pygame.display.flip()
-    while pygame.event.wait().type != pygame.QUIT:
-        pass
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.K_PAGEUP:
+
+
 
     pygame.quit()
     # Удаляем за собой файл с изображением.
