@@ -4,71 +4,83 @@ import requests
 import sys
 import os
 
+class Map:
+    def __init__(self, map_file, ll, map_type, spnx, spny, add_params):
+        self.map_file = map_file
+        self.ll = ll
+        self.spnx = spnx
+        self.spny = spny
+        self.l = map_type
+        self.params = add_params
+        self.request = self.form_request(self.params, ll=ll, spn=str(spnx) + ',' + str(spny), l=map_type)
+        self.map_file = self.form_map(requests.get(self.request))
 
-def form_map(response):
-    # Формируем карту.
-    map_file = "map.png"
-    try:
-        with open(map_file, "wb") as file:
-            file.write(response.content)
-    except IOError as ex:
-        print("Ошибка записи временного файла:", ex)
-        sys.exit(2)
+    def form_request(self, args, **kwargs):
+        x = 'http://static-maps.yandex.ru/1.x/'
+        if kwargs or args:
+            x += '?'
+            for i in kwargs.keys():
+                x += i + "=" + str(kwargs[i])
+                x += '&'
+            x = x[:-1:]
+            if args:
+                if kwargs:
+                    x += '&'
+                for i in args:
+                    x += i
+                    x += '&'
+            if x[-1] == '&':
+                x = x[:-1:]
+        print(x)
+        return x
 
-    return map_file
+    def request_map(self, request):
+        response = requests.get(request)
+        if not response:
+            print("Ошибка выполнения запроса:")
+            print(self.request)
+            print("Http статус:", response.status_code, "(", response.reason, ")")
+            sys.exit(1)
+        return response
 
+    def form_map(self, response):
+        # Запишем полученное изображение в файл.
+        try:
+            with open(self.map_file, "wb") as file:
+                file.write(response.content)
+        except IOError as ex:
+            print("Ошибка записи временного файла:", ex)
+            sys.exit(2)
 
-def form_request(**kwargs):
-    # Формируем запрос.
-    x = 'http://static-maps.yandex.ru/1.x/'
-    if kwargs:
-        x += '?'
-        for i in kwargs.keys():
-            x += i + "=" + str(kwargs[i])
-            x += '&'
-        x = x[:-1:]
-    return x
+        return self.map_file
 
+    def map_change_size(self, delta):
+        # Изменяем параметр spn.
+        self.spnx = round(self.spnx * delta, 3)
+        self.spnx = min(2, max(0.002, self.spnx))
+        self.spny = round(self.spny * delta, 3)
+        self.spny = min(2, max(0.002, self.spny))
+        self.request = self.form_request(self.params, ll=self.ll, l=self.l, spn=str(self.spnx) + ',' + str(self.spny))
+        response = self.request_map(self.request)
+        self.map_file = self.form_map(response)
 
-def move_map(ll, move_x, move_y, spn):
-    # Изменяем параметр ll.
-    new_ll = '{},{}'.format(float(ll.split(',')[0]) + move_x, float(ll.split(',')[1]) + move_y)
-    # Возвращаем запрос карты с измененным ll.
-    return form_request(ll=new_ll, l="map", spn='{},{}'.format(spn[0], spn[1])), new_ll
+    def move_map(self, move_x, move_y):
+        # Изменяем параметр ll.
+        new_ll = '{},{}'.format(float(self.ll.split(',')[0]) + move_x, float(self.ll.split(',')[1]) + move_y)
+        self.ll = new_ll
+        self.request = self.form_request(self.params, ll=self.ll, l=self.l, spn=str(self.spnx) + ',' + str(self.spny))
+        response = self.request_map(self.request)
+        self.map_file = self.form_map(response)
+        # Возвращаем запрос карты с измененным ll.
 
-
-def map_change_size(delta, ll, spnx, spny):
-    # Изменяем параметр spn.
-    if spnx * delta >= 0.001 and spny * delta >= 0.001:
-        new_spn = (round(spnx * delta, 3), round(spny * delta, 3))
-    else:
-        new_spn = (spnx, spny)
-    # Возвращаем запрос карты с измененным spn.
-    return form_request(ll=ll, l="map", spn='{},{}'.format(new_spn[0], new_spn[1])), new_spn
-
-
-def show_map(ll=None, spn=(0.02, 0.02), map_type='map', add_params=None):
-    # Формируем начальный запрос.
-    if ll:
-        map_request = form_request(ll=ll, spn='{},{}'.format(spn[0], spn[1]), l=map_type)
-    else:
-        map_request = form_request(l=map_type)
-
-    if add_params:
-        map_request += "&" + add_params
-    response = requests.get(map_request)
-
-    if not response:
-        print("Ошибка выполнения запроса:")
-        print(map_request)
-        print("Http статус:", response.status_code, "(", response.reason, ")")
-        sys.exit(1)
-
-    # Инициализируем pygame.
+def show_map(ll=None, z=17, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
+    cur_map = Map(map_file='map.png', ll=ll, map_type=map_type, spnx=spnx, spny=spny, add_params=add_params)
+    # Инициализируем pygame
     pygame.init()
     screen = pygame.display.set_mode((600, 450))
-    map_file = form_map(response)
-    screen.blit(pygame.image.load(map_file), (0, 0))
+    screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
+    # Рисуем картинку, загружаемую из только что созданного файла.
+    # Переключаем экран и ждем закрытия окна.
 
     running = True
     while running:
@@ -77,86 +89,20 @@ def show_map(ll=None, spn=(0.02, 0.02), map_type='map', add_params=None):
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_PAGEUP:
-                    # новый запрос и переопределенный spn
-                    new_req, spn = map_change_size(2, ll, spn[0], spn[1])
-                    response = requests.get(new_req)
-
-                    if not response:
-                        print("Ошибка выполнения запроса:")
-                        print(map_request)
-                        print("Http статус:", response.status_code, "(", response.reason, ")")
-                        sys.exit(1)
-
-                    map_file = form_map(response)
-                    screen.blit(pygame.image.load(map_file), (0, 0))
-
+                    cur_map.map_change_size(2)
                 if event.key == pygame.K_PAGEDOWN:
-                    new_req, spn = map_change_size(0.5, ll, spn[0], spn[1])
-                    response = requests.get(new_req)
-
-                    if not response:
-                        print("Ошибка выполнения запроса:")
-                        print(map_request)
-                        print("Http статус:", response.status_code, "(", response.reason, ")")
-                        sys.exit(1)
-
-                    map_file = form_map(response)
-                    screen.blit(pygame.image.load(map_file), (0, 0))
-
-                if event.key == pygame.K_LEFT:
-                    new_req, ll = move_map(ll, -spn[0], 0, spn)
-                    response = requests.get(new_req)
-
-                    if not response:
-                        print("Ошибка выполнения запроса:")
-                        print(map_request)
-                        print("Http статус:", response.status_code, "(", response.reason, ")")
-                        sys.exit(1)
-
-                    map_file = form_map(response)
-                    screen.blit(pygame.image.load(map_file), (0, 0))
-
+                    cur_map.map_change_size(0.5)
                 if event.key == pygame.K_RIGHT:
-                    new_req, ll = move_map(ll, spn[0], 0, spn)
-                    response = requests.get(new_req)
-
-                    if not response:
-                        print("Ошибка выполнения запроса:")
-                        print(map_request)
-                        print("Http статус:", response.status_code, "(", response.reason, ")")
-                        sys.exit(1)
-
-                    map_file = form_map(response)
-                    screen.blit(pygame.image.load(map_file), (0, 0))
-
-                if event.key == pygame.K_UP:
-                    new_req, ll = move_map(ll, 0, spn[1], spn)
-                    response = requests.get(new_req)
-
-                    if not response:
-                        print("Ошибка выполнения запроса:")
-                        print(map_request)
-                        print("Http статус:", response.status_code, "(", response.reason, ")")
-                        sys.exit(1)
-
-                    map_file = form_map(response)
-                    screen.blit(pygame.image.load(map_file), (0, 0))
-
+                    cur_map.move_map(cur_map.spnx * 4, 0)
+                if event.key == pygame.K_LEFT:
+                    cur_map.move_map(-cur_map.spnx * 4, 0)
                 if event.key == pygame.K_DOWN:
-                    new_req, ll = move_map(ll, 0, -spn[1], spn)
-                    response = requests.get(new_req)
-
-                    if not response:
-                        print("Ошибка выполнения запроса:")
-                        print(map_request)
-                        print("Http статус:", response.status_code, "(", response.reason, ")")
-                        sys.exit(1)
-
-                    map_file = form_map(response)
-                    screen.blit(pygame.image.load(map_file), (0, 0))
-
+                    cur_map.move_map(0, -cur_map.spny * 2)
+                if event.key == pygame.K_UP:
+                    cur_map.move_map(0, cur_map.spny * 2)
+                screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
         pygame.display.flip()
 
     pygame.quit()
     # Удаляем за собой файл с изображением.
-    os.remove(map_file)
+    os.remove(cur_map.map_file)
