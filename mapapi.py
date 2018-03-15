@@ -63,6 +63,7 @@ class Map:
         self.spnx = min(2.0, max(0.002, self.spnx))
         self.spny = round(self.spny * delta, 3)
         self.spny = min(2.0, max(0.002, self.spny))
+        # Запрос карты с измененным spn.
         self.request = self.form_request(self.params, ll=self.ll, l=self.l, spn=str(self.spnx) + ',' + str(self.spny))
         response = self.request_map(self.request)
         self.map_file = self.form_map(response)
@@ -86,19 +87,16 @@ class Map:
 def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=None):
     cur_map = Map(map_file='map.png', ll=ll, map_type=map_type, spnx=spnx, spny=spny, add_params=add_params)
 
-    # Инициализируем pygame
     pygame.init()
-    gui = GUI()
     screen = pygame.display.set_mode((600, 450))
     screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
+    gui = GUI()  # инициализируем gui и добавляем кнопки
     map_button = Button((450, 0, 50, 30), 'map')
     sat_button = Button((500, 0, 50, 30), 'sat')
     skl_button = Button((550, 0, 50, 30), 'skl')
     gui.add_element(map_button)
     gui.add_element(sat_button)
     gui.add_element(skl_button)
-    # Рисуем картинку, загружаемую из только что созданного файла.
-    # Переключаем экран и ждем закрытия окна.
 
     running = True
     while running:
