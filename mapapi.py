@@ -81,6 +81,7 @@ def show_map(ll=None, z=17, spnx=0.02, spny=0.02, map_type='map', add_params=[])
     screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
     # Рисуем картинку, загружаемую из только что созданного файла.
     # Переключаем экран и ждем закрытия окна.
+
     running = True
     while running:
         for event in pygame.event.get():
