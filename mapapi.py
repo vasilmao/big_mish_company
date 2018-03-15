@@ -6,7 +6,7 @@ import os
 
 
 def form_map(response):
-    # Запишем полученное изображение в файл.
+    # Формируем карту.
     map_file = "map.png"
     try:
         with open(map_file, "wb") as file:
@@ -19,6 +19,7 @@ def form_map(response):
 
 
 def form_request(**kwargs):
+    # Формируем запрос.
     x = 'http://static-maps.yandex.ru/1.x/'
     if kwargs:
         x += '?'
@@ -26,22 +27,23 @@ def form_request(**kwargs):
             x += i + "=" + str(kwargs[i])
             x += '&'
         x = x[:-1:]
-    print(x)
     return x
 
 
-def map_bigger(map_request, delta, sizex, sizey, ll, type, z):
+def map_change_size(delta, ll, z):
+    # Изменяем масштаб карты.
     if 0 <= z + delta <= 17:
         z += delta
-    return form_request(ll=ll, l=type, size=str(sizex)+','+str(sizey), z=z), z
+    # Возвращаем запрос карты с измененным масштабом.
+    return form_request(ll=ll, l="map", z=z), z
 
 
-def show_map(ll=None, z=17, sizex=600, sizey=450, map_type='map', add_params=None):
+def show_map(ll=None, z=14, map_type='map', add_params=None):
+    # Формируем начальный запрос.
     if ll:
-        map_request = "http://static-maps.yandex.ru/1.x/?ll={0}&z={1}&size={2},{3}&l={4}".format(ll, z, sizex, sizey, map_type)
-        print(map_request)
+        map_request = form_request(ll=ll, z=z, l=map_type)
     else:
-        map_request = "http://static-maps.yandex.ru/1.x/?l={map_type}".format(**locals())
+        map_request = form_request(l=map_type)
 
     if add_params:
         map_request += "&" + add_params
@@ -53,28 +55,44 @@ def show_map(ll=None, z=17, sizex=600, sizey=450, map_type='map', add_params=Non
         print("Http статус:", response.status_code, "(", response.reason, ")")
         sys.exit(1)
 
-    # Инициализируем pygame
+    # Инициализируем pygame.
     pygame.init()
     screen = pygame.display.set_mode((600, 450))
     map_file = form_map(response)
     screen.blit(pygame.image.load(map_file), (0, 0))
-    # Рисуем картинку, загружаемую из только что созданного файла.
-    # Переключаем экран и ждем закрытия окна.
+
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
-                new_req, z = map_bigger(map_request, 1, sizex, sizey, ll, map_type, z)
-                response = requests.get(new_req)
-                map_file = form_map(response)
-                screen.blit(pygame.image.load(map_file), (0, 0))
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
-                new_req, z = map_bigger(map_request, -1, sizex, sizey, ll, map_type, z)
-                response = requests.get(new_req)
-                map_file = form_map(response)
-                screen.blit(pygame.image.load(map_file), (0, 0))
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_PAGEUP:
+                    new_req, z = map_change_size(-1, ll, z)  # новый запрос и переопределенный масштаб
+                    response = requests.get(new_req)
+
+                    if not response:
+                        print("Ошибка выполнения запроса:")
+                        print(map_request)
+                        print("Http статус:", response.status_code, "(", response.reason, ")")
+                        sys.exit(1)
+
+                    map_file = form_map(response)
+                    screen.blit(pygame.image.load(map_file), (0, 0))
+
+                if event.key == pygame.K_PAGEDOWN:
+                    new_req, z = map_change_size(1, ll, z)
+                    response = requests.get(new_req)
+
+                    if not response:
+                        print("Ошибка выполнения запроса:")
+                        print(map_request)
+                        print("Http статус:", response.status_code, "(", response.reason, ")")
+                        sys.exit(1)
+
+                    map_file = form_map(response)
+                    screen.blit(pygame.image.load(map_file), (0, 0))
+
         pygame.display.flip()
 
     pygame.quit()
