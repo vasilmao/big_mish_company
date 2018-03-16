@@ -1,4 +1,7 @@
-import sys, requests, pygame
+import sys
+import requests
+import pygame
+
 
 class GUI:
     def __init__(self):
@@ -25,23 +28,12 @@ class GUI:
             if callable(get_event):
                 element.get_event(event)
 
-    def move_cam(self, d):
-        for element in self.elements:
-            move_cam = getattr(element, "move_cam", None)
-            if callable(move_cam):
-                element.move_cam(d)
-
-    def move(self):
-        for element in self.elements:
-            move = getattr(element, "move", None)
-            if callable(move):
-                element.move()
-
     def erase(self, x):
         for i in range(len(self.elements)):
             if self.elements[i] is x:
                 self.elements.pop(i)
                 break
+
 
 class Map:
     def __init__(self, map_file, ll, map_type, spnx, spny, add_params):
@@ -95,9 +87,15 @@ class Map:
     def map_change_size(self, delta):
         # Изменяем параметр spn.
         self.spnx = round(self.spnx * delta, 3)
-        self.spnx = min(80, max(0.002, self.spnx))
+        self.spnx = min(80.0, max(0.002, self.spnx))
         self.spny = round(self.spny * delta, 3)
-        self.spny = min(80, max(0.002, self.spny))
+        self.spny = min(80.0, max(0.002, self.spny))
+        self.request = self.form_request(self.params, ll=self.ll, l=self.l, spn=str(self.spnx) + ',' + str(self.spny))
+        response = self.request_map(self.request)
+        self.map_file = self.form_map(response)
+
+    def change_map_type(self, new_map_type):
+        self.l = new_map_type
         self.request = self.form_request(self.params, ll=self.ll, l=self.l, spn=str(self.spnx) + ',' + str(self.spny))
         response = self.request_map(self.request)
         self.map_file = self.form_map(response)
@@ -128,8 +126,8 @@ class Map:
         self.request = self.form_request(self.params, ll=self.ll, spn=str(self.spnx) + ',' + str(self.spny), l=self.l)
         self.map_file = self.form_map(self.request_map(self.request))
 
+
 class Label:
-    DARKBLUE = (250, 113, 36)
     def __init__(self, rect, text, text_color=pygame.Color('black'), background_color=pygame.Color('white')):
         self.rect = pygame.Rect(rect)
         self.text = text
@@ -147,6 +145,7 @@ class Label:
         self.rendered_rect = self.rendered_text.get_rect(x=self.rect.x + 2, centery=self.rect.centery)
         # выводим текст
         surface.blit(self.rendered_text, self.rendered_rect)
+
 
 class TextBox(Label):
     def __init__(self, rect, text=''):
@@ -195,29 +194,42 @@ class TextBox(Label):
             #self.rendered_rect = self.rendered_text.get_rect(x=self.rect.x + 2, centery=self.rect.centery)
             x = self.font.render(self.text[:self.cursor], 2, self.font_color)
             y = x.get_rect(x=self.rect.x + 2, centery=self.rect.centery).right
-            #print(y, self.cursor)
             pygame.draw.line(surface, pygame.Color("black"),
                              (y, self.rendered_rect.top + 2),
                              (y, self.rendered_rect.bottom - 2))
+        # рисуем границу
+        pygame.draw.rect(surface, pygame.Color("white"), self.rect, 2)
+        pygame.draw.line(surface, pygame.Color("black"), (self.rect.right - 1, self.rect.top),
+                         (self.rect.right - 1, self.rect.bottom), 2)
+        pygame.draw.line(surface, pygame.Color("black"), (self.rect.left, self.rect.bottom - 1),
+                         (self.rect.right, self.rect.bottom - 1), 2)
+
 
 class Button(Label):
-    def __init__(self, rect, text, id):
+    def __init__(self, rect, text):
         super().__init__(rect, text)
         self.bgcolor = pygame.Color('white')
         self.pressed = False
-        self.id = id
 
     def render(self, surface):
-
+        surface.fill(self.bgcolor, self.rect)
+        self.rendered_text = self.font.render(self.text, 1, self.font_color)
         if not self.pressed:
-            surface.fill(self.bgcolor, self.rect)
-            self.rendered_text = self.font.render(self.text, 1, self.font_color)
-            self.rendered_rect = self.rendered_text.get_rect(center=self.rect.center)
+            color1 = pygame.Color("white")
+            color2 = pygame.Color("black")
+            self.rendered_rect = self.rendered_text.get_rect(x=self.rect.x + 5, centery=self.rect.centery)
         else:
-            surface.fill(self.font_color, self.rect)
-            self.rendered_text = self.font.render(self.text, 1, self.bgcolor)
-            self.rendered_rect = self.rendered_text.get_rect(center=self.rect.center)
+            color1 = pygame.Color("black")
+            color2 = pygame.Color("white")
+            self.rendered_rect = self.rendered_text.get_rect(x=self.rect.x + 7, centery=self.rect.centery + 2)
 
+        # рисуем границу
+        pygame.draw.rect(surface, color1, self.rect, 2)
+        pygame.draw.line(surface, color2, (self.rect.right - 1, self.rect.top), (self.rect.right - 1, self.rect.bottom),
+                         2)
+        pygame.draw.line(surface, color2, (self.rect.left, self.rect.bottom - 1),
+                         (self.rect.right, self.rect.bottom - 1), 2)
+        # выводим текст
         surface.blit(self.rendered_text, self.rendered_rect)
 
     def get_event(self, event):
@@ -227,7 +239,6 @@ class Button(Label):
             return False
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1 and self.pressed:
             self.pressed = False
-            return self.id
         elif event.type == pygame.MOUSEMOTION:
             if self.rect.collidepoint(event.pos):
                 self.font_color = pygame.Color('green')

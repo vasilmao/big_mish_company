@@ -1,6 +1,6 @@
 # coding:utf-8
-
 import requests
+
 
 def geocode(address):
     # Собираем запрос для геокодера.
@@ -17,7 +17,7 @@ def geocode(address):
             """Ошибка выполнения запроса:
             {request}
             Http статус: {status} ({reason})""".format(
-            request=geocoder_request, status=response.status_code, reason=response.reason))
+                request=geocoder_request, status=response.status_code, reason=response.reason))
 
     # Получаем первый топоним из ответа геокодера.
     # Согласно описанию ответа он находится по следующему пути:
@@ -29,8 +29,8 @@ def geocode(address):
 def get_coordinates(address):
     toponym = geocode(address)
     if not toponym:
-        return (None,None)
-    
+        return None, None
+
     # Координаты центра топонима:
     toponym_coodrinates = toponym["Point"]["pos"]
     # Широта, преобразованная в плавающее число:
@@ -42,7 +42,7 @@ def get_coordinates(address):
 def get_ll_span(address):
     toponym = geocode(address)
     if not toponym:
-        return (None,None)
+        return None, None
 
     # Координаты центра топонима:
     toponym_coodrinates = toponym["Point"]["pos"]
@@ -56,9 +56,9 @@ def get_ll_span(address):
     envelope = toponym["boundedBy"]["Envelope"]
 
     # левая, нижняя, правая и верхняя границы из координат углов:
-    l,b = envelope["lowerCorner"].split(" ")
-    r,t = envelope["upperCorner"].split(" ")
-  
+    l, b = envelope["lowerCorner"].split(" ")
+    r, t = envelope["upperCorner"].split(" ")
+
     # Вычисляем полуразмеры по вертикали и горизонтали
     dx = abs(float(l) - float(r)) / 2.0
     dy = abs(float(t) - float(b)) / 2.0
@@ -67,6 +67,7 @@ def get_ll_span(address):
     span = "{dx},{dy}".format(**locals())
 
     return (ll, span)
+
 
 # Находим ближайшие к заданной точке объекты заданного типа.
 def get_nearest_object(point, kind):
@@ -79,14 +80,13 @@ def get_nearest_object(point, kind):
     if not response:
         raise RuntimeError(
             """Ошибка выполнения запроса:
-            {geocoder_request}
+            {request}
             Http статус: {status} ({reason})""".format(
-            request=geocoder_request, status=response.status_code, reason=response.reason))
+                request=geocoder_request, status=response.status_code, reason=response.reason))
 
     # Преобразуем ответ в json-объект
     json_response = response.json()
-    
+
     # Получаем первый топоним из ответа геокодера.
     features = json_response["response"]["GeoObjectCollection"]["featureMember"]
     return features[0]["GeoObject"]["name"] if features else None
-
