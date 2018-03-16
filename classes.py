@@ -126,6 +126,12 @@ class Map:
         self.request = self.form_request(self.params, ll=self.ll, spn=str(self.spnx) + ',' + str(self.spny), l=self.l)
         self.map_file = self.form_map(self.request_map(self.request))
 
+    def reset_pt(self):
+        for k in range(len(self.params)):
+            if self.params[k].startswith('pt='):
+                self.params.pop(k)
+                break
+
 
 class Label:
     def __init__(self, rect, text, text_color=pygame.Color('black'), background_color=pygame.Color('white')):
