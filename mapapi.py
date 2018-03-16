@@ -89,6 +89,7 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
             screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
         if reset_pt.pressed:
             cur_map.reset_pt()
+            screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
         gui.update()
         gui.render(screen)
         pygame.display.flip()
