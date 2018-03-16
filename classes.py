@@ -120,7 +120,7 @@ class Map:
                     ind = k
                     break
             if flag:
-                self.params[ind] += '~{},pm2dgm'.format(self.ll)
+                self.params[ind] = 'pt={},pm2dgm'.format(self.ll)
             else:
                 self.params.append('pt={},pm2dgm'.format(self.ll))
         self.request = self.form_request(self.params, ll=self.ll, spn=str(self.spnx) + ',' + str(self.spny), l=self.l)
