@@ -24,18 +24,16 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
     screen = pygame.display.set_mode((600, 450))
     screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
     gui = GUI()
-    search_box = TextBox((0, 0, 390, 30))
+    search_box = TextBox((0, 0, 370, 30))
     gui.add_element(search_box)
-    search_button = Button((390, 0, 60, 30), 'искать')
+    search_button = Button((370, 0, 80, 30), 'искать')
     map_button = Button((450, 0, 50, 30), 'map')
     sat_button = Button((500, 0, 50, 30), 'sat')
     skl_button = Button((550, 0, 50, 30), 'skl')
-    reset_pt = Button((0, 420, 50, 30), 'reset')
     gui.add_element(map_button)
     gui.add_element(sat_button)
     gui.add_element(skl_button)
     gui.add_element(search_button)
-    gui.add_element(reset_pt)
 
     running = True
     while running:
@@ -43,7 +41,6 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
-                print(event.key)
                 if event.key == pygame.K_PAGEUP:
                     cur_map.map_change_size(2)
                 elif event.key == pygame.K_PAGEDOWN:
@@ -51,10 +48,8 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
                 elif event.key == pygame.K_RIGHT:
                     if search_box.active:
                         search_box.get_event(event)
-                        print('yay')
                     else:
                         cur_map.move_map(cur_map.spnx * 3, 0)
-                        print('yay1')
                 elif event.key == pygame.K_LEFT:
                     if search_box.active:
                         search_box.get_event(event)
@@ -76,8 +71,15 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
             else:
                 gui.get_event(event)
         if search_button.pressed:
-            search(search_box.text, cur_map)
-            screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
+            if search_button.text == "искать":
+                search(search_box.text, cur_map)
+                search_button.text = "сбросить"
+                screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
+            elif search_button.text == "сбросить":
+                cur_map.reset_pt()
+                search_button.text = "искать"
+                search_box.erase()
+                screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
         if map_button.pressed and cur_map.l != "map":
             cur_map.change_map_type("map")
             screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
@@ -87,9 +89,7 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
         if skl_button.pressed and cur_map.l != "sat,skl":
             cur_map.change_map_type("sat,skl")
             screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
-        if reset_pt.pressed:
-            cur_map.reset_pt()
-            screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
+
         gui.update()
         gui.render(screen)
         pygame.display.flip()
