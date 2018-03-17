@@ -25,6 +25,23 @@ def geocode(address):
     return features[0]["GeoObject"] if features else None
 
 
+def get_formatted_address(address):
+    geocoder_request = "http://geocode-maps.yandex.ru/1.x/?geocode={address}&format=json".format(**locals())
+    response = requests.get(geocoder_request)
+
+    if response:
+        json_response = response.json()
+    else:
+        raise RuntimeError(
+            """Ошибка выполнения запроса:
+            {request}
+            Http статус: {status} ({reason})""".format(
+                request=geocoder_request, status=response.status_code, reason=response.reason))
+
+    features = json_response["response"]["GeoObjectCollection"]["featureMember"]
+    return features[0]["GeoObject"]["metaDataProperty"]["GeocoderMetaData"]["Address"]["formatted"]
+
+
 # Получаем координаты объекта по его адресу.
 def get_coordinates(address):
     toponym = geocode(address)
