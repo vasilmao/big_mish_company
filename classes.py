@@ -126,6 +126,14 @@ class Map:
         self.request = self.form_request(self.params, ll=self.ll, spn=str(self.spnx) + ',' + str(self.spny), l=self.l)
         self.map_file = self.form_map(self.request_map(self.request))
 
+    def reset_pt(self):
+        for k in range(len(self.params)):
+            if self.params[k].startswith('pt='):
+                self.params.pop(k)
+                break
+        self.request = self.form_request(self.params, ll=self.ll, spn=str(self.spnx) + ',' + str(self.spny), l=self.l)
+        self.map_file = self.form_map(self.request_map(self.request))
+
 
 class Label:
     def __init__(self, rect, text, text_color=pygame.Color('black'), background_color=pygame.Color('white')):
@@ -203,6 +211,10 @@ class TextBox(Label):
                          (self.rect.right - 1, self.rect.bottom), 2)
         pygame.draw.line(surface, pygame.Color("black"), (self.rect.left, self.rect.bottom - 1),
                          (self.rect.right, self.rect.bottom - 1), 2)
+
+    def erase(self):
+        self.cursor = 0
+        self.text = self.text[:self.cursor]
 
 
 class Button(Label):
