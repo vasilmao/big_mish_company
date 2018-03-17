@@ -154,6 +154,16 @@ class Label:
         # выводим текст
         surface.blit(self.rendered_text, self.rendered_rect)
 
+        # рисуем границу
+        pygame.draw.rect(surface, pygame.Color("white"), self.rect, 2)
+        pygame.draw.line(surface, pygame.Color("black"), (self.rect.right - 1, self.rect.top),
+                         (self.rect.right - 1, self.rect.bottom), 2)
+        pygame.draw.line(surface, pygame.Color("black"), (self.rect.left, self.rect.bottom - 1),
+                         (self.rect.right, self.rect.bottom - 1), 2)
+
+    def erase(self):
+        self.text = ""
+
 
 class TextBox(Label):
     def __init__(self, rect, text=''):

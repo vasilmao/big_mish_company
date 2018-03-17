@@ -1,10 +1,6 @@
 #coding:utf-8
-import pygame
 import os
-from classes import Map
-from classes import GUI
-from classes import TextBox
-from classes import Button
+from classes import *
 from geocoder import *
 
 
@@ -25,6 +21,7 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
     screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
     gui = GUI()
     search_box = TextBox((0, 0, 370, 30))
+    address_box = Label((0, 30, 600, 30), "")
     gui.add_element(search_box)
     search_button = Button((370, 0, 80, 30), 'искать')
     map_button = Button((450, 0, 50, 30), 'map')
@@ -74,11 +71,15 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
             if search_button.text == "искать":
                 search(search_box.text, cur_map)
                 search_button.text = "сбросить"
+                gui.add_element(address_box)
+                address_box.text = "Адрес: {}".format(get_formatted_address(search_box.text))
                 screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
             elif search_button.text == "сбросить":
                 cur_map.reset_pt()
                 search_button.text = "искать"
+                address_box.erase()
                 search_box.erase()
+                gui.erase(address_box)
                 screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
         if map_button.pressed and cur_map.l != "map":
             cur_map.change_map_type("map")
