@@ -1,22 +1,24 @@
 #coding:utf-8
 import os
+from math import cos
 from classes import *
 from geocoder import *
 
 
-def search(text, cur_map):
+def search(text, cur_map, moving=False):
     # Ищем введенный в строку поиска объект
     lat, lon = get_coordinates(text)
     if lat is None or lon is None:
         print('Не нашлось')
         return
     lat, lon = round(lat, 3), round(lon, 3)
-    cur_map.go_to_coords(lat, lon, True)  # перемещаем карту
+    if moving:
+        cur_map.go_to_coords(lat, lon, True)  # перемещаем карту
 
 
-def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
+def show_map(ll=None, zoom='17', size='600,450', map_type='map', add_params=[]):
     # инициализируем карту
-    cur_map = Map(map_file='map.png', ll=ll, map_type=map_type, spnx=spnx, spny=spny, add_params=add_params)
+    cur_map = Map(map_file='map.png', ll=ll, map_type=map_type, size=size, z=zoom, add_params=add_params)
     # инициализируем pygame
     pygame.init()
     screen = pygame.display.set_mode((600, 450))
@@ -39,6 +41,7 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
     gui.add_element(search_button)
     gui.add_element(reset_button)
     gui.add_element(postal_code)
+    print_org = False
 
     running = True
     while running:
@@ -47,39 +50,99 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_PAGEUP:
-                    cur_map.map_change_size(2)  # увеличиваем область показа
+                    cur_map.map_change_size(-1)  # увеличиваем область показа
                 elif event.key == pygame.K_PAGEDOWN:
-                    cur_map.map_change_size(0.5)  # уменьшаем область показа
+                    cur_map.map_change_size(1)  # уменьшаем область показа
                 elif event.key == pygame.K_RIGHT:
                     if search_box.active:
                         search_box.get_event(event)
                     else:
-                        cur_map.move_map(cur_map.spnx * 3, 0)  # перемещаем карту вправо
+                        cur_map.move_map(1, 0)  # перемещаем карту вправо
                 elif event.key == pygame.K_LEFT:
                     if search_box.active:
                         search_box.get_event(event)
                     else:
-                        cur_map.move_map(-cur_map.spnx * 3, 0)  # перемещаем карту влево
+                        cur_map.move_map(-1, 0)  # перемещаем карту влево
                 elif event.key == pygame.K_DOWN:
                     if search_box.active:
                         search_box.get_event(event)
                     else:
-                        cur_map.move_map(0, -cur_map.spny)  # перемещаем карту вниз
+                        cur_map.move_map(0, -1)  # перемещаем карту вниз
                 elif event.key == pygame.K_UP:
                     if search_box.active:
                         search_box.get_event(event)
                     else:
-                        cur_map.move_map(0, cur_map.spny)  # перемещаем карту вверх
+                        cur_map.move_map(0, 1)  # перемещаем карту вверх
                 else:
                     search_box.get_event(event)
                 screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
             else:
                 gui.get_event(event)
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 \
+                        and not pygame.Rect((0, 419, 150, 30)).collidepoint(event.pos):  # не пересекается ли клик с кнопками переключения карты
+                    if 30 < event.pos[1]:
+                        dx = int(event.pos[0] - 300)
+                        dy = int(event.pos[1] - 225)
+                        kekx = 360 / (2 ** (int(cur_map.z) + 8))
+                        lly = float(cur_map.ll.split(',')[1])
+                        lly = lly * 2 * pi / 360
+                        keky = abs(cos(lly)) * 180 / (2 ** (int(cur_map.z) + 7))
+                        kekx *= dx
+                        keky *= dy
+                        kekll = cur_map.ll
+                        kekll = str(round(float(kekll.split(',')[0]) + kekx, 5)) + ',' + str(round(float(kekll.split(',')[1]) - keky, 5))
+                        cur_map.change_pt(kekll)
+                        search(kekll, cur_map)
+                        formatted_address = get_formatted_address(kekll)  # получаем полный адрес объекта
+                        zip_code = get_postal_code(search_box.text)  # получаем почтовый индекс
+                        print_org = False
+                        if postal_code.pressed:  # если был нажат переключатель
+                            if zip_code:
+                                address_box.text = "Адрес: {}, ZIP: {}".format(formatted_address, zip_code)
+                            else:
+                                address_box.text = "Адрес: {}, ZIP: {}".format(formatted_address, "Not found")
+                        else:
+                            address_box.text = "Адрес: {}".format(formatted_address)
+                        if address_box not in gui.elements:  # отображаем строку с адресом
+                            gui.add_element(address_box)
+                        screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
+
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+                    if 30 < event.pos[1]:
+                        dx = int(event.pos[0] - 300)
+                        dy = int(event.pos[1] - 225)
+                        kekx = 360 / (2 ** (int(cur_map.z) + 8))
+                        lly = float(cur_map.ll.split(',')[1])
+                        lly = lly * 2 * pi / 360
+                        keky = abs(cos(lly)) * 180 / (2 ** (int(cur_map.z) + 7))
+                        kekx *= dx
+                        keky *= dy
+                        kekll = cur_map.ll
+                        kekll = str(round(float(kekll.split(',')[0]) + kekx, 5)) + ',' + str(round(float(kekll.split(',')[1]) - keky, 5))
+                        try:
+                            formatted_address, org_name, org_point = get_nearest_organization(get_formatted_address(kekll), kekll)
+                            cur_map.change_pt(org_point)
+                            search(formatted_address, cur_map)
+                            zip_code = get_postal_code(search_box.text)
+                            print_org = True
+                            if postal_code.pressed:  # если был нажат переключатель
+                                if zip_code:
+                                    address_box.text = "Ближ. орг-ция: {}, ZIP: {}".format(org_name, zip_code)
+                                else:
+                                    address_box.text = "Ближ. орг-ция: {}, ZIP: {}".format(org_name, "Not found")
+                            else:
+                                address_box.text = "Ближ. орг-ция: {}".format(org_name)
+                            if address_box not in gui.elements:  # отображаем строку с адресом
+                                gui.add_element(address_box)
+                            screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
+                        except TypeError:  # если расстояние больше 50 - ничего не делать
+                            pass
 
         if search_button.pressed:  # нажата кнопка поиска
-            search(search_box.text, cur_map)  # осуществляем поиск
+            search(search_box.text, cur_map, True)  # осуществляем поиск
             formatted_address = get_formatted_address(search_box.text)  # получаем полный адрес объекта
             zip_code = get_postal_code(search_box.text)  # получаем почтовый индекс
+            print_org = False
             if postal_code.pressed:  # если был нажат переключатель
                 if zip_code:
                     address_box.text = "Адрес: {}, ZIP: {}".format(formatted_address, zip_code)
@@ -90,6 +153,7 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
             if address_box not in gui.elements:  # отображаем строку с адресом
                 gui.add_element(address_box)
             screen.blit(pygame.image.load(cur_map.map_file), (0, 0))
+
         if reset_button.pressed:  # нажата кнопка сброса
             cur_map.reset_pt()  # сбрасываем метку
             address_box.erase()  # очищаем строку с адресом
@@ -99,11 +163,20 @@ def show_map(ll=None, spnx=0.02, spny=0.02, map_type='map', add_params=[]):
 
         if postal_code.pressed and address_box in gui.elements:  # если переключатель был нажат после поиска
             if zip_code:
-                address_box.text = "Адрес: {}, ZIP: {}".format(formatted_address, zip_code)
+                if print_org:
+                    address_box.text = "Ближ. орг-ция: {}, ZIP: {}".format(org_name, zip_code)
+                else:
+                    address_box.text = "Адрес: {}, ZIP: {}".format(formatted_address, zip_code)
             else:
-                address_box.text = "Адрес: {}, ZIP: {}".format(formatted_address, "Not found")
+                if print_org:
+                    address_box.text = "Ближ. орг-ция: {}, ZIP: {}".format(org_name, "Not found")
+                else:
+                    address_box.text = "Адрес: {}, ZIP: {}".format(formatted_address, "Not found")
         elif address_box in gui.elements:
-            address_box.text = "Адрес: {}".format(formatted_address)
+            if print_org:
+                address_box.text = "Ближ. орг-ция: {}".format(org_name)
+            else:
+                address_box.text = "Адрес: {}".format(formatted_address)
 
         # переключение вида карты
         if map_button.pressed and cur_map.l != "map":

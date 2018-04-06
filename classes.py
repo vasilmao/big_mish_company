@@ -1,3 +1,4 @@
+from math import cosh, pi
 import sys
 import requests
 import pygame
@@ -36,14 +37,14 @@ class GUI:
 
 
 class Map:
-    def __init__(self, map_file, ll, map_type, spnx, spny, add_params):
+    def __init__(self, map_file, ll, size, map_type, z, add_params):
         self.map_file = map_file
         self.ll = ll
-        self.spnx = spnx
-        self.spny = spny
+        self.z = z
         self.l = map_type
+        self.size = size
         self.params = add_params
-        self.request = self.form_request(self.params, ll=ll, spn=str(spnx) + ',' + str(spny), l=map_type)
+        self.request = self.form_request(self.params, ll=ll, size=size, z=z, l=map_type)
         self.map_file = self.form_map(self.request_map(self.request))
 
     def form_request(self, args, **kwargs):
@@ -85,45 +86,43 @@ class Map:
         return self.map_file
 
     def map_change_size(self, delta):
-        # Изменяем параметр spn.
-        self.spnx = round(self.spnx * delta, 3)
-        self.spnx = min(80.0, max(0.002, self.spnx))
-        self.spny = round(self.spny * delta, 3)
-        self.spny = min(80.0, max(0.002, self.spny))
-        self.request = self.form_request(self.params, ll=self.ll, l=self.l, spn=str(self.spnx) + ',' + str(self.spny))
+        if 1 <= int(self.z) + delta <= 17:
+            self.z = str(int(self.z) + delta)
+        self.request = self.form_request(self.params, ll=self.ll, l=self.l, size=self.size, z=self.z)
         response = self.request_map(self.request)
         self.map_file = self.form_map(response)
 
     def change_map_type(self, new_map_type):
         self.l = new_map_type
-        self.request = self.form_request(self.params, ll=self.ll, l=self.l, spn=str(self.spnx) + ',' + str(self.spny))
+        self.request = self.form_request(self.params, ll=self.ll, l=self.l, z=self.z)
         response = self.request_map(self.request)
         self.map_file = self.form_map(response)
 
     def move_map(self, move_x, move_y):
         # Изменяем параметр ll.
-        new_ll = '{},{}'.format(float(self.ll.split(',')[0]) + move_x, float(self.ll.split(',')[1]) + move_y)
+        llx = float(self.ll.split(',')[0])
+        lly = float(self.ll.split(',')[1])
+        lly = lly * 2 * pi / 360
+        dx = 360 / (2 ** (int(self.z) + 8))
+        dx = dx * 600
+        dy = abs(cosh(lly)) * 180 / (2 ** (int(self.z) + 8))
+        dy = dy * 380
+        dx *= move_x
+        dy *= move_y
+        new_ll = '{},{}'.format(round(float(self.ll.split(',')[0]), 5) + dx,
+                                round(float(self.ll.split(',')[1]) + dy, 5))
         self.ll = new_ll
-        self.request = self.form_request(self.params, ll=self.ll, l=self.l, spn=str(self.spnx) + ',' + str(self.spny))
+        # print(round(float(self.ll.split(',')[1]) + dy, 5))
+        # print(self.ll)
+        self.request = self.form_request(self.params, ll=self.ll, l=self.l, size=self.size, z=self.z)
         response = self.request_map(self.request)
         self.map_file = self.form_map(response)
-        # Возвращаем запрос карты с измененным ll.
 
     def go_to_coords(self, x, y, point):
         self.ll = str(x) + ',' + str(y)
         if point:
-            flag = False
-            ind = 0
-            for k in range(len(self.params)):
-                if 'pt=' in self.params[k]:
-                    flag = True
-                    ind = k
-                    break
-            if flag:
-                self.params[ind] = 'pt={},pm2dgm'.format(self.ll)
-            else:
-                self.params.append('pt={},pm2dgm'.format(self.ll))
-        self.request = self.form_request(self.params, ll=self.ll, spn=str(self.spnx) + ',' + str(self.spny), l=self.l)
+            self.change_pt(self.ll)
+        self.request = self.form_request(self.params, ll=self.ll, size=self.size, z=self.z, l=self.l)
         self.map_file = self.form_map(self.request_map(self.request))
 
     def reset_pt(self):
@@ -131,7 +130,22 @@ class Map:
             if self.params[k].startswith('pt='):
                 self.params.pop(k)
                 break
-        self.request = self.form_request(self.params, ll=self.ll, spn=str(self.spnx) + ',' + str(self.spny), l=self.l)
+        self.request = self.form_request(self.params, ll=self.ll, size=self.size, z=self.z, l=self.l)
+        self.map_file = self.form_map(self.request_map(self.request))
+
+    def change_pt(self, coords):
+        flag = False
+        ind = 0
+        for k in range(len(self.params)):
+            if 'pt=' in self.params[k]:
+                flag = True
+                ind = k
+                break
+        if flag:
+            self.params[ind] = 'pt={},pm2dgm'.format(coords)
+        else:
+            self.params.append('pt={},pm2dgm'.format(coords))
+        self.request = self.form_request(self.params, ll=self.ll, size=self.size, z=self.z, l=self.l)
         self.map_file = self.form_map(self.request_map(self.request))
 
 
@@ -208,8 +222,8 @@ class TextBox(Label):
     def render(self, surface):
         super(TextBox, self).render(surface)
         if self.blink and self.active:
-            #self.rendered_text = self.font.render(self.text, 1, self.font_color)
-            #self.rendered_rect = self.rendered_text.get_rect(x=self.rect.x + 2, centery=self.rect.centery)
+            # self.rendered_text = self.font.render(self.text, 1, self.font_color)
+            # self.rendered_rect = self.rendered_text.get_rect(x=self.rect.x + 2, centery=self.rect.centery)
             x = self.font.render(self.text[:self.cursor], 2, self.font_color)
             y = x.get_rect(x=self.rect.x + 2, centery=self.rect.centery).right
             pygame.draw.line(surface, pygame.Color("black"),
@@ -278,12 +292,13 @@ class CheckBox:
 
     def render(self, surface):
         if self.pressed:
-            pygame.draw.circle(surface, pygame.Color('blue'), (self.rect.x + self.rect.width // 2, self.rect.y + self.rect.height // 2), 10)
+            pygame.draw.circle(surface, pygame.Color('blue'),
+                               (self.rect.x + self.rect.width // 2, self.rect.y + self.rect.height // 2), 10)
             rendered_text = self.font.render(self.text, 1, pygame.Color('black'))
-            surface.blit(rendered_text, (self.rect.x - self.rect.width,  self.rect.y + 8))
+            surface.blit(rendered_text, (self.rect.x - self.rect.width, self.rect.y + 8))
         else:
             rendered_text = self.font.render(self.text, 1, pygame.Color('black'))
-            surface.blit(rendered_text, (self.rect.x - self.rect.width,  self.rect.y + 8))
+            surface.blit(rendered_text, (self.rect.x - self.rect.width, self.rect.y + 8))
             pygame.draw.circle(surface, pygame.Color('blue'),
                                (self.rect.x + self.rect.width // 2, self.rect.y + self.rect.height // 2), 10, 1)
 
